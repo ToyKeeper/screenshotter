@@ -97,19 +97,10 @@ def screenshot(profile, outpath=None):
 
     # file name / title
     if not outpath:
-        path_format = load_option(profile, 'path_format')
-        prev_title = load_option(profile, 'title')
-        preview = time.strftime(path_format, now)
-        err, stdout, stderr = run('zenity', '--entry',
-                                  f'--text=Save to: {preview}\nEnter title:',
-                                  f'--entry-text={prev_title}'
-                                  )
-        title = stdout.strip()
-        if title != prev_title:
-            save_option(profile, 'title', title)
-
-        outpath = preview.format(title=title)
-
+        outpath = ask_outpath(profile, now)
+        if not outpath:
+            log(f'Cancelled')
+            return
     log(f'outpath {outpath}')
 
     # move the file, ensure destination directory exists
@@ -140,6 +131,57 @@ def screenshot(profile, outpath=None):
 def log(text):
     if verbose:
         print(text)
+
+
+def ask_outpath(profile, now):
+    path_format = load_option(profile, 'path_format')
+    prev_title = load_option(profile, 'title')
+    preview = time.strftime(path_format, now)
+
+    # get a list of recent files in dest dir
+    outdir = os.path.dirname(preview)
+    outdir = os.path.expanduser(outdir)
+    recent = ''
+    err, stdout, stderr = run('ls', '-t', outdir)
+    if not err:
+        unique = []
+        filenames = stdout.split('\n')
+        for f in filenames:
+            parts = f.split('.')  # strip down to base name
+            name = parts[0]
+            if name not in unique:
+                unique.append(name)
+            if len(unique) >= 10:
+                break
+        unique.reverse()
+        recent = 'Recent files:' + '\n'.join(unique) + '\n\n'
+
+    # display the actual dialog window
+    # make the dialog twice as big
+    os.environ['GDK_SCALE'] = '2'
+    # don't let gtk eat underscores
+    escaped_preview = preview.replace('_', '__')
+    escaped_recent = recent.replace('_', '__')
+    err, stdout, stderr = run('zenity', '--entry',
+                              f'--title=Enter Title [{program_name} --{profile}]',
+                              f'--class={program_name}',
+                              f'--name={profile}',
+                              f'--text={escaped_recent}Save to: {escaped_preview}\nTitle:',
+                              f'--entry-text={prev_title}',
+                              )
+    title = stdout.strip()
+
+    # cancelled
+    if not title:
+        return None
+
+    # remember for next time
+    if title != prev_title:
+        save_option(profile, 'title', title)
+
+    # return full output path
+    outpath = preview.format(title=title)
+    return outpath
 
 
 def find_option(profile, opt):
