@@ -28,6 +28,7 @@ Requires:
 Recommends:
 
   - ImageMagick (for the 'import' and 'convert' commands)
+  - zenity (for prompting the user for a title)
   - John Bradley's "xv" ... or whatever other image viewer / editor you like
   - xwd (in case ImageMagick has any trouble with fullscreen capture)
 
