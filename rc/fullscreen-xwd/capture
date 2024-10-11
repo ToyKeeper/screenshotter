@@ -1,0 +1,9 @@
+#!/bin/sh
+OUTPATH="$1"
+TMP=$(mktemp /tmp/printscreen.XXXXX.xwd)
+# for some reason, this occasionally blacks out part of the image
+#import -window root -quality 90 "$OUTPATH"
+# Use a more reliable method
+xwd -root -out $TMP
+convert -quality 90 "$TMP" "$OUTPATH"
+rm -f $TMP

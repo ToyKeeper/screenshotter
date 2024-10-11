@@ -1,0 +1,2 @@
+#!/bin/sh
+optipng -preserve -strip all "$1" -out "$2"

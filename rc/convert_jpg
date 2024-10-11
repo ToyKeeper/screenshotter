@@ -1,0 +1,2 @@
+#!/bin/sh
+convert "$1" -quality 90 "$2"

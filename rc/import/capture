@@ -1,0 +1,6 @@
+#!/bin/sh
+# unclutter makes "import"'s cursor invisible
+killall unclutter
+# left click for a window,
+# middle button drag for a rectangle
+import -border -frame -descend "$1"
