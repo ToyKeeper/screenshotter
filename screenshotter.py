@@ -100,6 +100,7 @@ def screenshot(profile, outpath=None):
         outpath = ask_outpath(profile, now)
         if not outpath:
             log(f'Cancelled')
+            os.remove(tmpfile)  # FIXME: should only be handled in one place
             return
     log(f'outpath {outpath}')
 
