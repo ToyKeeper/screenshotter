@@ -3,4 +3,4 @@
 killall unclutter
 # left click for a window,
 # middle button drag for a rectangle
-import -border -frame -descend "$1"
+import -border -frame "$1"
