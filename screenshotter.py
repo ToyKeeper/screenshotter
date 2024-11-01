@@ -136,7 +136,9 @@ def log(text):
 
 def ask_outpath(profile, now):
     path_format = load_option(profile, 'path_format')
-    prev_title = load_option(profile, 'title')
+    max_titles = int(load_option(profile, 'max_titles', 16))
+    prev_titles = load_option(profile, 'titles').split('\n')
+    prev_title = prev_titles[0]
     preview = time.strftime(path_format, now)
 
     # get a list of recent files in dest dir
@@ -145,17 +147,23 @@ def ask_outpath(profile, now):
     recent = ''
     err, stdout, stderr = run('ls', '-t', outdir)
     if not err:
-        unique = []
+        unique = prev_titles[:]
         filenames = stdout.split('\n')
         for f in filenames:
             parts = f.split('.')  # strip down to base name
             name = parts[0]
-            if name not in unique:
+            if name and (name not in unique):
                 unique.append(name)
-            if len(unique) >= 10:
+            if len(unique) >= max_titles:
                 break
         unique.reverse()
-        recent = 'Recent files:' + '\n'.join(unique) + '\n\n'
+    # recall other recent titles too, if there's room
+    if len(unique) < max_titles:
+        for t in prev_titles:
+            if t not in unique:
+                unique.append(t)
+    #    recent = 'Recent files:' + '\n'.join(unique) + '\n\n'
+    recent = '\n'.join(unique[:max_titles]).strip() + '\n\n'
 
     # display the actual dialog window
     # make the dialog twice as big
@@ -177,8 +185,14 @@ def ask_outpath(profile, now):
         return None
 
     # remember for next time
-    if title != prev_title:
-        save_option(profile, 'title', title)
+    #if title != prev_title:
+    #    save_option(profile, 'title', title)
+    if title != prev_titles[0]:
+        if title in prev_titles:
+            prev_titles.remove(title)
+        prev_titles.insert(0, title)
+        prev_titles = prev_titles[:max_titles]
+        save_option(profile, 'titles', '\n'.join(prev_titles))
 
     # return full output path
     outpath = preview.format(title=title)
@@ -199,11 +213,15 @@ def find_option(profile, opt):
     return None
 
 
-def load_option(profile, opt):
+def load_option(profile, opt, default=None):
+    if not default:
+        default = ''
     path = find_option(profile, opt)
     if not path:
-        return ''
+        return default
     text = open(path).read().strip()
+    if not text:
+        return default
     return text
 
 
