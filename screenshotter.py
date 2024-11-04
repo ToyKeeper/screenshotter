@@ -145,9 +145,9 @@ def ask_outpath(profile, now):
     outdir = os.path.dirname(preview)
     outdir = os.path.expanduser(outdir)
     recent = ''
+    unique = prev_titles[:]
     err, stdout, stderr = run('ls', '-t', outdir)
     if not err:
-        unique = prev_titles[:]
         filenames = stdout.split('\n')
         for f in filenames:
             parts = f.split('.')  # strip down to base name
