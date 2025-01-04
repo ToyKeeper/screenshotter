@@ -147,7 +147,8 @@ def ask_outpath(profile, now):
     prev_titles = [l for l in
                    load_option(profile, 'titles').split('\n')
                    if l]
-    prev_title = prev_titles[0]
+    if prev_titles: prev_title = prev_titles[0]
+    else: prev_title = ''
     preview = time.strftime(path_format, now)
 
     # get a list of recent files in dest dir
@@ -160,7 +161,7 @@ def ask_outpath(profile, now):
         filenames = stdout.split('\n')
         for f in filenames:
             parts = f.split('.')  # strip down to base name
-            name = parts[0]
+            name = '.'.join(parts[:-1])  # strip only final extension
             if name and (name not in unique):
                 unique.append(name)
             if len(unique) >= max_titles:
