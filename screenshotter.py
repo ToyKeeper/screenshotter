@@ -162,12 +162,63 @@ def ask_outpath(profile, now):
         for t in prev_titles:
             if t not in unique:
                 unique.append(t)
-    #    recent = 'Recent files:' + '\n'.join(unique) + '\n\n'
-    recent = '\n'.join(unique[:max_titles]).strip() + '\n\n'
+    unique = [title.replace('-', ' ') for title in unique[:max_titles]]
+    unique.reverse()
 
     # display the actual dialog window
     # make the dialog twice as big
     os.environ['GDK_SCALE'] = '2'
+
+    # choose a UI style...
+    # TODO: make this user-configurable via profile
+    #err, title = dialog_zenity_entry_history(profile, preview, unique)
+    #err, title = dialog_zenity_2step(profile, preview, unique)
+    #err, title = dialog_yad_form(profile, preview, unique)
+    #err, title = dialog_yad_entry_combo(profile, preview, unique)
+    #err, title = dialog_dmenu(profile, preview, unique)
+    dialog_funcs = (
+            dialog_dmenu,
+            dialog_yad_entry_combo,
+            dialog_yad_form,
+            dialog_zenity_2step,
+            dialog_zenity_entry_history,
+            )
+    dialog_func = dialog_funcs[0]
+
+    err, title = dialog_func(profile, preview, unique)
+
+    # cancelled
+    if 0 != err:
+        return None
+
+    # default to last-used title
+    if not title:
+        title = prev_title
+
+    title = title.replace(' ', '-')
+
+    # remember for next time
+    #if title != prev_title:
+    #    save_option(profile, 'title', title)
+    if title != prev_title:
+        if title in prev_titles:
+            prev_titles.remove(title)
+        prev_titles.insert(0, title)
+        prev_titles = prev_titles[:max_titles]
+        save_option(profile, 'titles', '\n'.join(prev_titles))
+
+    # return full output path
+    outpath = preview.format(title=title)
+    return outpath
+
+
+def dialog_zenity_entry_history(profile, preview, titles):
+    prev_title = titles[0].replace('_', '__')
+    titles.reverse()
+    titles = titles[:20]  # FIXME: should be configurable
+    recent = '\n'.join(titles).strip() + '\n\n'
+
+    # display the actual dialog window
     # don't let gtk eat underscores
     escaped_preview = preview.replace('_', '__')
     escaped_recent = recent.replace('_', '__')
@@ -180,23 +231,137 @@ def ask_outpath(profile, now):
                               )
     title = stdout.strip()
 
-    # cancelled
-    if not title:
-        return None
+    return err, title
 
-    # remember for next time
-    #if title != prev_title:
-    #    save_option(profile, 'title', title)
-    if title != prev_titles[0]:
-        if title in prev_titles:
-            prev_titles.remove(title)
-        prev_titles.insert(0, title)
-        prev_titles = prev_titles[:max_titles]
-        save_option(profile, 'titles', '\n'.join(prev_titles))
 
-    # return full output path
-    outpath = preview.format(title=title)
-    return outpath
+def dialog_zenity_2step(profile, preview, titles):
+    prev_title = titles[0].replace('_', '__')
+    escaped_preview = preview.replace('_', '__')
+    err, stdout, stderr = run('zenity', '--entry',
+                              f'--title=Enter Title [{program_name} --{profile}]',
+                              f'--class={program_name}',
+                              f'--name={profile}',
+                              f'--text=Save to: {escaped_preview}\nTitle:',
+                              f'--entry-text={prev_title}',
+                              f'--cancel-label=Edit Recent',
+                              )
+    title = stdout.strip()
+
+    # cancelled, choose from recent list instead
+    if 0 != err:
+        lengths = [(len(title), title) for title in titles]
+        lengths.sort()
+        longest = lengths[-1][1].replace('_', '__')
+        recent = [title.replace('_', '__') for title in titles]
+        err, stdout, stderr = run('zenity', '--list',
+                                  f'--title=Recent Titles [{program_name} --{profile}]',
+                                  f'--class={program_name}',
+                                  f'--name={profile}',
+                                  f'--text=Save to: {escaped_preview}\nLongest: {longest}',
+                                  '--column=Title:',
+                                  '--mid-search',
+                                  '--hide-header',
+                                  '--editable',
+                                  '--height=400',  # FIXME: should be automatic
+                                  *recent,
+                                  )
+        title = stdout.strip()
+        #print(f'err: {err}')
+        #print(f'stdout: {title}')
+        #print(f'stderr: {stderr}')
+
+    return err, title
+
+
+def dialog_yad_form(profile, preview, titles):
+    # yad --form --mouse
+    #   --field='Title' 'default'
+    #   --field='Recent:CBE' '^one!two!three!four'
+    prev_title = titles[0]
+    joined_recent = '^!' + '!'.join(titles)
+    err, stdout, stderr = run('yad', '--no-markup', '--mouse',
+                              '--form',
+                              f'--title=Enter Title [{program_name} --{profile}]',
+                              f'--class={program_name}',
+                              f'--name={profile}',
+                              f'--text=Save to: {preview}',
+                              '--field=Title', prev_title,
+                              '--field=Recent:CBE', joined_recent,
+                              )
+    stdout = stdout.strip()
+    print(f'err: {err}')
+    print(f'stdout: {stdout}')
+    print(f'stderr: {stderr}')
+
+    if not stdout:  # user cancelled the dialog window
+        return 1, ''
+    elif not ('|' in stdout):  # should never happen
+        title = stdout
+        return err, title
+
+    # else:  # elif '|' in stdout:  # normal case
+    parts = stdout.split('|')
+    entry, selected = parts[:2]
+
+    if selected not in ('', prev_title):
+        title = selected
+    else:  # selected == blank or prev_title
+        title = entry
+
+    if (not title) and (not err):
+        err = 1
+
+    print(f'{err}: {title}')
+    #return err, title
+    return 1, ''
+
+
+def dialog_yad_entry_combo(profile, preview, titles):
+    prev_title = titles[0]
+    # FIXME: showing recent titles makes the entry box HUGE
+    #recent = titles[:5]  # FIXME: should be configurable
+    #recent.reverse()
+    #recent_joined = '\n'.join(recent).strip() + '\n\n'
+    err, stdout, stderr = run('yad', '--no-markup', '--mouse',
+                              '--entry',
+                              '--editable',
+                              '--completion',
+                              '--complete=regex',
+                              #'--no-buttons',
+                              f'--title=Enter Title [{program_name} --{profile}]',
+                              f'--class={program_name}',
+                              f'--name={profile}',
+                              #f'--text={recent_joined}Save to: {preview}',
+                              f'--text=Save to: {preview}',
+                              f'--entry-text={prev_title}',
+                              *titles,
+                              )
+    #stdout = stdout.strip()
+    #print(f'err: {err}')
+    #print(f'stdout: {stdout}')
+    #print(f'stderr: {stderr}')
+    #return 1, ''
+    title = stdout.strip()
+    return err, title
+
+
+def dialog_dmenu(profile, preview, titles):
+    stdin = bytes('\n'.join(titles), encoding='utf-8')
+    err, stdout, stderr = run('dmenu',
+                              '-b',  # bottom of screen
+                              '-i',  # case insensitive
+                              '-l', '10',  # list, number of lines to show
+                              '-fn', 'Serif:pixelsize=30',  # font
+                              '-p', f'sshot --{profile}',  # prompt
+                              input=stdin,
+                              )
+    #stdout = stdout.strip()
+    #print(f'err: {err}')
+    #print(f'stdout: {stdout}')
+    #print(f'stderr: {stderr}')
+    #return 1, ''
+    title = stdout.strip()
+    return err, title
 
 
 def find_option(profile, opt):
@@ -243,9 +408,9 @@ def run_option(profile, opt, *args):
     return run(path, *args)
 
 
-def run(*args):
+def run(*args, **kwargs):
     log('run(%s)' % ' '.join(args))
-    proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
     stdout = str(proc.stdout, encoding='utf-8')
     stderr = str(proc.stderr, encoding='utf-8')
     code = proc.returncode
