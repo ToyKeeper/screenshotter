@@ -18,6 +18,7 @@ def main(args):
       -h   --help     Display this help text and exit.
       -v   --verbose  Show extra detail about actions taken.
            --profile  Use settings from {profile}.
+                      Default: "default-profile"
 
     Profiles:
       In ~/.screenshotter/, subdirs may exist which override any of the
@@ -51,7 +52,7 @@ def main(args):
           A program to edit the image before saving.
     """
 
-    profile = ''
+    profile = 'default-profile'
     outpath = None
 
     for a in args:
@@ -128,6 +129,11 @@ def screenshot(profile, outpath=None):
     # clean up
     os.remove(tmpfile)
 
+    # if the user wants to add more notes, fire up a text editor
+    if find_option(profile, 'text-editor'):
+        log(f'text editor: {outpath}')
+        run_option(profile, 'text-editor', profile, outpath)
+
 
 def log(text):
     if verbose:
@@ -137,7 +143,10 @@ def log(text):
 def ask_outpath(profile, now):
     path_format = load_option(profile, 'path_format')
     max_titles = int(load_option(profile, 'max_titles', 16))
-    prev_titles = load_option(profile, 'titles').split('\n')
+    # recent titles are one per non-blank line
+    prev_titles = [l for l in
+                   load_option(profile, 'titles').split('\n')
+                   if l]
     prev_title = prev_titles[0]
     preview = time.strftime(path_format, now)
 
@@ -165,26 +174,26 @@ def ask_outpath(profile, now):
     unique = [title.replace('-', ' ') for title in unique[:max_titles]]
     unique.reverse()
 
-    # display the actual dialog window
-    # make the dialog twice as big
+    # choose a UI style for the dialog window...
+    dialog_style = load_option(profile, 'ask-title-style').replace('-', '_')
+    try:
+        dialog_func = globals()[f'dialog_{dialog_style}']
+    except KeyError:
+        print('Error: unrecognized dialog style name')
+        print('Styles include:')
+        keys = list(globals().keys())
+        keys.sort()
+        for k in keys:
+            if k.startswith('dialog_'):
+                k = k[len('dialog_'):].replace('_', '-')
+                print(f'  {k}')
+        return None
+
+    # make GDK/GTK dialogs twice as big
+    # FIXME: this isn't the right place to do this
     os.environ['GDK_SCALE'] = '2'
 
-    # choose a UI style...
-    # TODO: make this user-configurable via profile
-    #err, title = dialog_zenity_entry_history(profile, preview, unique)
-    #err, title = dialog_zenity_2step(profile, preview, unique)
-    #err, title = dialog_yad_form(profile, preview, unique)
-    #err, title = dialog_yad_entry_combo(profile, preview, unique)
-    #err, title = dialog_dmenu(profile, preview, unique)
-    dialog_funcs = (
-            dialog_dmenu,
-            dialog_yad_entry_combo,
-            dialog_yad_form,
-            dialog_zenity_2step,
-            dialog_zenity_entry_history,
-            )
-    dialog_func = dialog_funcs[0]
-
+    # ask the user for a title
     err, title = dialog_func(profile, preview, unique)
 
     # cancelled
@@ -195,6 +204,7 @@ def ask_outpath(profile, now):
     if not title:
         title = prev_title
 
+    # clean up the title to make it work better as a filename
     title = title.replace(' ', '-')
 
     # remember for next time
@@ -364,12 +374,35 @@ def dialog_dmenu(profile, preview, titles):
     return err, title
 
 
+def dialog_custom(profile, preview, titles):
+    stdin = bytes('\n'.join(titles), encoding='utf-8')
+    err, stdout, stderr = run_option(profile, 'ask-title',
+                                     profile, preview,
+                                     input=stdin,
+                                     )
+    #stdout = stdout.strip()
+    #print(f'err: {err}')
+    #print(f'stdout: {stdout}')
+    #print(f'stderr: {stderr}')
+    #return 1, ''
+    title = stdout.strip()
+    return err, title
+
+
 def find_option(profile, opt):
     cfgdir = os.path.expanduser(f'~/.{program_name}')
+    # look for both 'file-name' and 'file_name'
+    opt_dash = opt.replace('_', '-')
+    opt_underscore = opt.replace('-', '_')
+    # try both the subdir and the root config dir
+    # TODO: search recursively from subdir back to config dir,
+    #       in case subdir is nested
     candidates = []
     if profile:
-        candidates.append(f'{cfgdir}/{profile}/{opt}')
-    candidates.append(f'{cfgdir}/{opt}')
+        candidates.append(f'{cfgdir}/{profile}/{opt_dash}')
+        candidates.append(f'{cfgdir}/{profile}/{opt_underscore}')
+    candidates.append(f'{cfgdir}/{opt_dash}')
+    candidates.append(f'{cfgdir}/{opt_underscore}')
 
     for c in candidates:
         if os.path.exists(c):
@@ -401,11 +434,11 @@ def save_option(profile, opt, value):
         f.write('\n')
 
 
-def run_option(profile, opt, *args):
+def run_option(profile, opt, *args, **kwargs):
     path = find_option(profile, opt)
     if not path:
         return '', '', ''
-    return run(path, *args)
+    return run(path, *args, **kwargs)
 
 
 def run(*args, **kwargs):
