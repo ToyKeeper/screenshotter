@@ -1,0 +1,4 @@
+Same as interactive screenshot, but attach a text file afterward
+with additional details beyond just the image filename.
+
+Saves to "${image}.md"

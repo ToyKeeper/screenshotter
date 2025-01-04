@@ -1,0 +1,4 @@
+#!/bin/sh
+# $1: profile name
+# $2: screenshot path
+myterm -e vim "$2".md

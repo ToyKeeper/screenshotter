@@ -1,6 +1,8 @@
 #!/bin/sh
 # unclutter makes "import"'s cursor invisible
 killall unclutter
+# beep
+aplay -q ~/.sounds/x11-bell.wav
 # left click for a window,
 # middle button drag for a rectangle
 import -border -frame "$1"

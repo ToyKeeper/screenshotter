@@ -1,0 +1,3 @@
+#!/bin/sh
+# simply print the first line of stdin
+head -1
