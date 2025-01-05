@@ -1,22 +1,51 @@
 # Screenshotter
 
 A simple tool to take screenshots in some configurable ways.  Intended for use
-at a command line or from a hotkey.
+at a command line or from a hotkey.  A default configuration is provided, but
+it is modular and you are expected to plug in your own favorite tools to
+customize things for your needs.
 
-Configuration options include:
+Example usage:
 
-  - Command to use for capturing the screen.  This allows for automatic or
-    fullscreen modes, capturing all or part of the screen, a window or a
-    rectangle, etc.
-  - How long to delay before capture.
-  - Command to use for editing the image, after capturing but before saving.
-  - Commands to convert between formats, optimize pngs, etc.
-  - Filename format template.
-  - Title of the file, which goes into the template.
-  - Any number of profiles, which each have their own settings.
+  - Press the PrintScreen button or whatever else you like to use.
+  - Click a window or drags a rectangle to select what to capture onscreen.  Or
+    it can skip this step and choose automatically.
+  - Image is saved as a tmpfile.
+  - Your preferred image viewer / editor opens up to let you preview and modify
+    the image, if you want.  Save and quit to continue.  Or it can skip this
+    step.
+  - A dialog window pops up to request a title for the image.  The most
+    recently-used title is preselected, or you can search through other recent
+    titles and filenames.  The title will become part of the filename.  Type or
+    select something, then press Enter to continue or Escape to cancel.  Or
+    skip this step entirely to use the most recent title without asking.
+  - The image is optimized and saved to whatever path you configured during
+    setup, using a filename template of your choice.  Path, title, date, and
+    time are filled in according to the template.  Some title characters can be
+    converted to more filename-friendly characters if desired, like replacing
+    spaces with dashes.
+  - If configured to do so, your favorite text editor opens up to add detailed
+    notes about the image, using the same filename but with a .txt or .md
+    extension.
 
-Prompts the user for a title before saving, and remembers the last-used title
-for each profile.  Fills in date and time automatically.
+By default, the various operation modes are selected based on which modifier
+keys you were holding when you hit PrintScreen.  So PrintScreen by itself is
+pretty interactive, but with Ctrl held, it picks a title automatically instead
+of asking, and with Shift held it captures the whole screen instead of waiting
+for the user to select a portion.  This is all configurable, of course.
+
+The user can have an unlimited number of different profiles configured, each
+one accessible via hotkeys or command line options.  For example, you could
+have one profile for personal pics, one for work, one for games, one for
+automatic upload to a web site, etc.
+
+Everything is configured simply by dropping files into config directories.  For
+example, your personal profile could specify a `path-format` of
+`~/personal/%Y/%m/%d/{title}.%H:%M:%S.png` while your work profile could save
+files to `~/work/screenshots/%Y-%m-%d_%H:%M:%S.{title}.jpg`.  Just put one
+format string in `personal/path-format` and the other in `work/path-format`.
+Every setting can be changed per-profile like this.
+
 
 ## Dependencies
 
@@ -44,10 +73,12 @@ Recommends:
     - Rasterman's "feh"
     - ... many many others
 
+  - A text editor, like vim in a terminal, or gedit, or sublime, or whatever.
+
 ## Install
 
-Copy `screenshotter.py` to your $PATH somewhere.  Maybe make some aliases to it
-for easier typing, and install some scripts and config files.
+Copy or link `screenshotter.py` into your $PATH somewhere.  Maybe make some
+symlinks to it for easier typing, and install some scripts and config files.
 
 ```sh
   > mkdir -p ~/src ~/bin
@@ -87,6 +118,15 @@ Or to make things easier to customize later...
 (bind-keys global-keymap   "C-M-PrintScreen" '(run-shell-command "printscreen-ctrl-meta"))
 (bind-keys global-keymap "S-C-M-PrintScreen" '(run-shell-command "printscreen-shift-ctrl-meta"))
 ```
+
+That way, you can change what each hotkey does by editing a script instead of
+remapping keys in your window manager.
+
+If you don't have a PrintScreen key, use whatever you like.  I'm using F20.  If
+you're not sure what a key is called, try running the `xev` program from a
+terminal, then focus xev and press the desired key inside the xev window.  It
+should print the key name and other info about it.
+
 
 ## Configuration
 
