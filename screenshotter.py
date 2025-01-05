@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# Screenshotter: a screenshot tool with a modular design for unix systems
+# Copyright (C) 2024 Selene ToyKeeper
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 
 program_name = 'screenshotter'
 verbose = False
