@@ -60,8 +60,9 @@ Recommends:
     - import (from ImageMagick)
     - xwd (in case ImageMagick has any trouble with fullscreen capture)
 
-  - Image format conversion tool:
+  - Image format conversion tools:
     - convert (from ImageMagick)
+    - optipng (makes .png images smaller)
 
   - A dialog window tool:
     - dmenu (apt install suckless-tools)
