@@ -8,7 +8,7 @@ customize things for your needs.
 Example usage:
 
   - Press the PrintScreen button or whatever else you like to use.
-  - Click a window or drags a rectangle to select what to capture onscreen.  Or
+  - Click a window or drag a rectangle to select what to capture onscreen.  Or
     it can skip this step and choose automatically.
   - Image is saved as a tmpfile.
   - Your preferred image viewer / editor opens up to let you preview and modify
