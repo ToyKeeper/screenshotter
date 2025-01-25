@@ -160,24 +160,19 @@ def ask_outpath(profile, now):
     outdir = os.path.expanduser(outdir)
     recent = ''
     unique = prev_titles[:]
-    err, stdout, stderr = run('ls', '-t', outdir)
-    if not err:
-        filenames = stdout.split('\n')
-        for f in filenames:
-            parts = f.split('.')  # strip down to base name
-            name = '.'.join(parts[:-1])  # strip only final extension
-            if name and (name not in unique):
-                unique.append(name)
-            if len(unique) >= max_titles:
-                break
-        unique.reverse()
     # recall other recent titles too, if there's room
     if len(unique) < max_titles:
-        for t in prev_titles:
-            if t not in unique:
-                unique.append(t)
+        err, stdout, stderr = run('ls', '-t', outdir)
+        if not err:
+            filenames = stdout.split('\n')
+            for f in filenames:
+                parts = f.split('.')  # strip down to base name
+                name = '.'.join(parts[:-1])  # strip only final extension
+                if name and (name not in unique):
+                    unique.append(name)
+                if len(unique) >= max_titles:
+                    break
     unique = [title.replace('-', ' ') for title in unique[:max_titles]]
-    unique.reverse()
 
     # choose a UI style for the dialog window...
     dialog_style = load_option(profile, 'ask-title-style').replace('-', '_')
