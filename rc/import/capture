@@ -1,8 +1,67 @@
 #!/bin/sh
+# Take a screenshot, as a 'capture' command in 'screenshotter.py'
+# Copyright (C) 2025 Selene ToyKeeper
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# let other programs know a screenshot is being taken
+# (because they can hang if they try to do certain things during a screenshot)
+# (requires that you have a ramdisk mounted in your homedir;
+#  can usually be accomplished like this:
+#  cd ; ln -s ../../run/$UID ram
+#  )
+PLZWAIT="$HOME/ram/screenshot-in-progress"
+# abort if a screenshot is already happening
+[ -f "$PLZWAIT" ] && exit 1
+# claim the lock
+touch "$PLZWAIT"
+
+RETURNCODE=0  # exit with this code when we're done
+
+# beep
+# (requires having a beepity sound you want to use)
+# Recommended setup:
+# - make a .wav file you want to play on beep
+# - Create ~/.xkb/xkbevd.cf like this:
+#   soundDirectory = "/home/myuser/.sounds/"
+#   soundCmd = "aplay -q"
+#   Bell() "x11-bell.wav"
+# - Run "xkbevd -bg &" in your ~/.Xsession
+aplay -q ~/.sounds/x11-bell.wav
+
 # unclutter makes "import"'s cursor invisible
 killall unclutter
-# beep
-aplay -q ~/.sounds/x11-bell.wav
+
 # left click for a window,
 # middle button drag for a rectangle
-import -border -frame "$1"
+import -border -frame "$1" &
+IMPORT_PID=$!
+# wait for 'import' but kill it if it takes too long
+# (assume something failed)
+SECONDS=20
+TIMEOUT=$(( $SECONDS * 10 ))
+#echo "waiting for PID $IMPORT_PID ..."
+while [ $TIMEOUT -gt 0 ]; do
+    # check if process is still running
+    if ! kill -0 "$IMPORT_PID" 2>/dev/null; then
+        # import exited on its own; assume success
+        break
+    fi
+    sleep 0.1
+    TIMEOUT=$((TIMEOUT - 1))
+done
+# if timeout expired and process still running, kill it
+#if kill -0 "$IMPORT_PID" 2>/dev/null; then
+if [ 0 = "$TIMEOUT" ]; then
+    echo "Imagemagick 'import' process $IMPORT_PID timed out, killing..."
+    RETURNCODE=1
+    kill "$IMPORT_PID"
+    # wait for it to terminate
+    wait "$IMPORT_PID"
+fi
+
+# clean up
+rm -f "$PLZWAIT"
+
+# all done
+exit "$RETURNCODE"
+
