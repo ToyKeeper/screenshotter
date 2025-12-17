@@ -91,7 +91,14 @@ def screenshot(profile, outpath=None):
     # capture
     tmpfile = tmp_filename()
     log(f'capture {tmpfile}')
-    run_option(profile, 'capture', tmpfile)
+    err, stdout, stderr = run_option(profile, 'capture', tmpfile)
+    if 0 != err:
+        print(f'Screenshot aborted: capture script returned error {err}')
+        print('stdout:')
+        print(stdout)
+        print('stderr:')
+        print(stderr)
+        return  # abort if script had an error
 
     # edit
     log(f'edit {tmpfile}')
